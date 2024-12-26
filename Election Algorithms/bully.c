@@ -17,39 +17,29 @@ void startElection(int initiator)
 {
     printf("\nNode %d initiated an election.\n", nodes[initiator].id);
     int highestID = nodes[initiator].id;
-    int foundHigher = 0;
 
-    for (int i = initiator + 1; i < n; i++)
+    // Pass the election message to all nodes in a ring
+    for (int i = 1; i < n; i++)
     {
-        if (nodes[i].isAlive && nodes[i].id > highestID)
+        int current = (initiator + i) % n;
+        if (nodes[current].isAlive)
         {
-            printf("Node %d sent a message to Node %d\n", nodes[initiator].id, nodes[i].id);
-            foundHigher = 1;
-            highestID = nodes[i].id;
-        }
-    }
-
-    if (!foundHigher)
-    {
-        leader = nodes[initiator].id;
-        printf("Node %d is elected as the leader.\n", leader);
-    }
-    else
-    {
-        for (int i = initiator + 1; i < n; i++)
-        {
-            if (nodes[i].isAlive && nodes[i].id == highestID)
+            printf("Node %d sent a message to Node %d\n", nodes[initiator].id, nodes[current].id);
+            if (nodes[current].id > highestID)
             {
-                startElection(i);
-                return;
+                highestID = nodes[current].id;
             }
         }
     }
+
+    // Announce the highest ID as the new leader
+    leader = highestID;
+    printf("Node %d is elected as the leader.\n", leader);
 }
 
 void declareLeader()
 {
-    printf("\nLeader is Node %d\n", leader);
+    printf("\nCurrent Leader: Node %d\n", leader);
 }
 
 void markNodeDead(int id)
@@ -58,21 +48,29 @@ void markNodeDead(int id)
     {
         if (nodes[i].id == id)
         {
-            nodes[i].isAlive = 0;
-            printf("\nNode %d is now dead.\n", id);
-            if (leader == id)
+            if (!nodes[i].isAlive)
             {
-                printf("Leader Node %d has failed. Starting re-election...\n", id);
-                for (int j = 0; j < n; j++)
+                printf("\nNode %d is already dead.\n", id);
+            }
+            else
+            {
+                nodes[i].isAlive = 0;
+                printf("\nNode %d is now dead.\n", id);
+
+                if (leader == id)
                 {
-                    if (nodes[j].isAlive)
+                    printf("Leader Node %d has failed. Starting re-election...\n", id);
+                    for (int j = 0; j < n; j++)
                     {
-                        startElection(j);
-                        return;
+                        if (nodes[j].isAlive)
+                        {
+                            startElection(j);
+                            return;
+                        }
                     }
+                    printf("No nodes are alive to elect a leader.\n");
+                    leader = -1;
                 }
-                printf("No nodes are alive to elect a leader.\n");
-                leader = -1;
             }
             return;
         }
@@ -86,19 +84,20 @@ void markNodeAlive(int id)
     {
         if (nodes[i].id == id)
         {
-            nodes[i].isAlive = 1;
-            printf("\nNode %d is now alive.\n", id);
-
-            if (leader < id)
+            if (nodes[i].isAlive)
             {
-                printf("Leader Node %d has been revived. Starting re-election...\n", id);
-                for (int j = 0; j < n; j++)
+                printf("\nNode %d is already alive.\n", id);
+            }
+            else
+            {
+                nodes[i].isAlive = 1;
+                printf("\nNode %d is now alive.\n", id);
+
+                // Re-elect leader if necessary
+                if (id > leader)
                 {
-                    if (nodes[j].isAlive)
-                    {
-                        startElection(j);
-                        return;
-                    }
+                    printf("Leader Node %d has been revived. Starting re-election...\n", id);
+                    startElection(i);
                 }
             }
             return;
