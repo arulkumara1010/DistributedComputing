@@ -48,21 +48,48 @@ void startElection(Process *head, int initiatorId)
     Process *current = head;
     int maxId = initiatorId;
     Process *maxProcess = NULL;
-
+    Process *initiator = NULL;
     do
+    {
+        if (current->id == initiatorId)
+        {
+            initiator = current;
+            break;
+        }
+        current = current->next;
+    } while (current != head);
+
+    if (initiator == NULL)
+    {
+        printf("Process with ID %d not found in the ring.\n", initiatorId);
+        return;
+    }
+
+    printf("Process with ID %d starts the election.\n", initiatorId);
+    current = initiator->next;
+    while (current != initiator)
     {
         if (current->active)
         {
+            printf("Process with ID %d sends election message to process with ID %d.\n", initiatorId, current->id);
             if (current->id > maxId)
             {
                 maxId = current->id;
                 maxProcess = current;
             }
+            initiatorId = current->id;
         }
         current = current->next;
-    } while (current != head);
+    }
 
-    printf("Process with ID %d is the coordinator!\n", maxProcess->id);
+    if (maxProcess != NULL)
+    {
+        printf("Process with ID %d is elected as the coordinator!\n", maxProcess->id);
+    }
+    else
+    {
+        printf("No active process found for election.\n");
+    }
 }
 
 void printProcesses(Process *head)
@@ -81,9 +108,19 @@ void printProcesses(Process *head)
     } while (temp != head);
 }
 
+void checkCoordinator(Process **head, Process **coordinator)
+{
+    if (*coordinator == NULL || !(*coordinator)->active)
+    {
+        printf("Coordinator is inactive. Starting a new election.\n");
+        startElection(*head, (*coordinator)->next->id);
+    }
+}
+
 int main()
 {
     Process *head = NULL;
+    Process *coordinator = NULL;
     int choice, id, active;
 
     while (1)
@@ -105,6 +142,10 @@ int main()
             printf("Enter process status (1 for active, 0 for inactive): ");
             scanf("%d", &active);
             insertProcess(&head, id, active);
+            if (coordinator == NULL || id > coordinator->id)
+            {
+                coordinator = head;
+            }
             printf("Process with ID %d inserted successfully.\n", id);
             break;
 
@@ -122,6 +163,17 @@ int main()
                     scanf("%d", &active);
                     current->active = active;
                     printf("Process %d status updated to %d.\n", id, active);
+
+                    if (current->active == 0)
+                    {
+                        printf("Process %d has been marked as inactive. Starting an election.\n", id);
+                        startElection(current->next, current->next->id);
+                    }
+                    else if (active == 1)
+                    {
+                        printf("Process %d reawakened. Starting an election.\n", id);
+                        startElection(head, id);
+                    }
                     break;
                 }
                 current = current->next;
@@ -149,6 +201,8 @@ int main()
         default:
             printf("Invalid choice, please try again.\n");
         }
+
+        checkCoordinator(&head, &coordinator);
     }
 
     return 0;
