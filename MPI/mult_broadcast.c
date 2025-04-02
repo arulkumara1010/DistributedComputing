@@ -3,21 +3,29 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define N 4 // Matrix size (NxN)
+// Matrix size (NxN) - can be changed as needed
+#define N 4
+// Maximum random value (exclusive)
+#define MAX_RANDOM_VALUE 100
 
 void printMatrix(int matrix[N][N], const char *name) {
   printf("\n%s Matrix:\n", name);
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < N; j++)
-      printf("%3d ", matrix[i][j]);
+      printf("%4d ", matrix[i][j]); // Wider spacing for larger numbers
     printf("\n");
   }
 }
 
-void initRandomMatrix(int matrix[N][N]) {
+void initRandomMatrix(int matrix[N][N], int seed_offset) {
+  // Use different seeds for different matrices
+  srand(time(NULL) + seed_offset);
+
   for (int i = 0; i < N; i++)
     for (int j = 0; j < N; j++)
-      matrix[i][j] = rand() % 10; // Random values between 0-9
+      matrix[i][j] =
+          rand() %
+          MAX_RANDOM_VALUE; // Random values between 0-(MAX_RANDOM_VALUE-1)
 }
 
 int main(int argc, char *argv[]) {
@@ -41,7 +49,7 @@ int main(int argc, char *argv[]) {
   int(*local_A)[N] = malloc(local_rows * sizeof(*local_A));
   int(*local_C)[N] = malloc(local_rows * sizeof(*local_C));
 
-  // Initialize to zero
+  // Initialize local_C to zero
   for (int i = 0; i < local_rows; i++) {
     for (int j = 0; j < N; j++) {
       local_C[i][j] = 0;
@@ -52,7 +60,6 @@ int main(int argc, char *argv[]) {
   if (rank == 0) {
     sendcounts = malloc(size * sizeof(int));
     displs = malloc(size * sizeof(int));
-
     int disp = 0;
     for (int i = 0; i < size; i++) {
       int rows_for_proc = N / size;
@@ -67,9 +74,9 @@ int main(int argc, char *argv[]) {
 
   // Initialize random matrices on rank 0
   if (rank == 0) {
-    srand(time(NULL));
-    initRandomMatrix(A);
-    initRandomMatrix(B);
+    // Use different seed offsets for A and B to ensure they're different
+    initRandomMatrix(A, 0);
+    initRandomMatrix(B, 100);
 
     // Print input matrices
     printMatrix(A, "A");
@@ -107,7 +114,6 @@ int main(int argc, char *argv[]) {
   // Free allocated memory
   free(local_A);
   free(local_C);
-
   MPI_Finalize();
   return 0;
 }
